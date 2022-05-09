@@ -10,6 +10,8 @@ export declare class FFT {
     constructor(bufferSize: number, sampleRate: number);
     forward(signal: any): void;
     spectrum: Float64Array;
+    real: Float64Array;
+    imag: Float64Array;
 }
 
 export declare class Oscillator {
@@ -21,6 +23,7 @@ export declare class Oscillator {
         sampleRate: number
     );
     generate(): void;
+    signal: Float64Array;
 }
 
 export declare const DSP: { [x: string]: number };

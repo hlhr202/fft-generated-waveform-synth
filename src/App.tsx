@@ -14,12 +14,10 @@ const buffer = new Float64Array(BUFFER_SIZE)
     .fill(0)
     .map((_, idx) => ((1.0 / BUFFER_SIZE) * idx - 0.5) * 2);
 
-console.log(buffer);
-
 fft.forward(buffer);
 
-const real = fft.spectrum;
-const imag = new Float64Array(real.length);
+const { real } = fft;
+const { imag } = fft;
 
 const combineDispose = (disposes: IReactionDisposer[]) => () => {
     disposes.forEach((dispose) => dispose());
