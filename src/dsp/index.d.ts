@@ -23,4 +23,4 @@ export declare class Oscillator {
     generate(): void;
 }
 
-export declare const DSP: { [x: string]: number } = {};
+export declare const DSP: { [x: string]: number };
