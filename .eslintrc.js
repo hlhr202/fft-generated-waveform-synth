@@ -37,5 +37,6 @@ module.exports = {
         "consistent-return": 0,
         "import/prefer-default-export": 0,
         "react/react-in-jsx-scope": 0,
+        "no-shadow": 0,
     },
 };

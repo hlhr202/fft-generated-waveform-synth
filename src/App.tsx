@@ -1,5 +1,5 @@
 import "./App.css";
-import { ChangeEventHandler } from "react";
+import { ChangeEventHandler, useRef } from "react";
 import { autorun, IReactionDisposer, makeAutoObservable } from "mobx";
 import { Observer } from "mobx-react";
 import { useEffectOnce } from "./lib/use-effect-once";
@@ -19,7 +19,7 @@ console.log(buffer);
 fft.forward(buffer);
 
 const real = fft.spectrum;
-const imag = new Float64Array(real.length).fill(0);
+const imag = new Float64Array(real.length);
 
 const combineDispose = (disposes: IReactionDisposer[]) => () => {
     disposes.forEach((dispose) => dispose());
@@ -54,7 +54,14 @@ class Audio {
         disableNormalization: false,
     });
 
+    gain = this.ctx.createGain();
+
+    analyzer = this.ctx.createAnalyser();
+
     init = () => {
+        this.osc.connect(this.gain);
+        this.gain.connect(this.analyzer);
+        this.analyzer.connect(this.ctx.destination);
         this.osc.setPeriodicWave(this.wav);
         // this.osc.type = "sawtooth";
         this.osc.frequency.value = INITIAL_FREQ;
@@ -65,9 +72,9 @@ class Audio {
         combineDispose([
             autorun(() => {
                 if (state.started) {
-                    this.osc.connect(this.ctx.destination);
+                    this.analyzer.connect(this.ctx.destination);
                 } else {
-                    this.osc.disconnect();
+                    this.analyzer.disconnect();
                 }
             }),
             autorun(() => {
@@ -77,6 +84,44 @@ class Audio {
 }
 
 const audio = new Audio();
+
+function drawWave(analyser: AnalyserNode, ctx: CanvasRenderingContext2D) {
+    const buffer = new Float32Array(1024);
+    const w = ctx.canvas.width;
+
+    ctx.strokeStyle = "#777";
+    ctx.setTransform(1, 0, 0, -1, 0, 100.5); // flip y-axis and translate to center
+    ctx.lineWidth = 2;
+
+    (function loop() {
+        analyser.getFloatTimeDomainData(buffer);
+
+        ctx.clearRect(0, -100, w, ctx.canvas.height);
+
+        ctx.beginPath();
+        ctx.moveTo(0, buffer[0] * 90);
+        for (let x = 2; x < w; x += 2) ctx.lineTo(x, buffer[x] * 90);
+        ctx.stroke();
+
+        if (state.started) requestAnimationFrame(loop);
+    })();
+}
+
+function Analyser() {
+    const ref = useRef<HTMLCanvasElement>(null);
+
+    useEffectOnce(() => {
+        const ctx = ref.current?.getContext("2d");
+
+        return autorun(() => {
+            if (state.started) {
+                drawWave(audio.analyzer, ctx!);
+            }
+        });
+    });
+
+    return <canvas ref={ref} />;
+}
 
 function App() {
     useEffectOnce(() => {
@@ -107,6 +152,9 @@ function App() {
                         <button onClick={handleStart}>
                             {state.started ? "stop" : "start"}
                         </button>
+                    </div>
+                    <div>
+                        <Analyser />
                     </div>
                 </>
             )}
