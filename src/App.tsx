@@ -1,12 +1,13 @@
-import "./App.css";
-import { ChangeEventHandler, useRef } from "react";
-import { autorun, IReactionDisposer, makeAutoObservable } from "mobx";
 import { Observer } from "mobx-react";
+import { Button, Card, Col, Layout, Row, Slider } from "antd";
+import { PauseCircleOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import { useEffectOnce } from "./lib/use-effect-once";
-import { FFT } from "./dsp";
+import { FFT } from "./lib/dsp";
+import { Analyser } from "./components/analyser";
+import { oscState } from "./states/osc.state";
+import { audioState } from "./states/audio.state";
 
 const BUFFER_SIZE = 2 ** 14;
-const INITIAL_FREQ = 440;
 
 const fft = new FFT(BUFFER_SIZE, 96000);
 
@@ -16,145 +17,68 @@ const buffer = new Float64Array(BUFFER_SIZE)
 
 fft.forward(buffer);
 
-const { real } = fft;
-const { imag } = fft;
-
-const combineDispose = (disposes: IReactionDisposer[]) => () => {
-    disposes.forEach((dispose) => dispose());
-};
-
-class State {
-    freq = INITIAL_FREQ;
-
-    started = false;
-
-    constructor() {
-        makeAutoObservable(this);
-    }
-
-    toggleStart = () => {
-        this.started = !this.started;
-    };
-
-    changeFreq: ChangeEventHandler<HTMLInputElement> = (e) => {
-        this.freq = Number(e.target.value);
-    };
-}
-
-const state = new State();
-
-class Audio {
-    ctx = new AudioContext();
-
-    osc = this.ctx.createOscillator();
-
-    wav = this.ctx.createPeriodicWave(real, imag, {
-        disableNormalization: false,
-    });
-
-    gain = this.ctx.createGain();
-
-    analyzer = this.ctx.createAnalyser();
-
-    init = () => {
-        this.osc.connect(this.gain);
-        this.gain.connect(this.analyzer);
-        this.analyzer.connect(this.ctx.destination);
-        this.osc.setPeriodicWave(this.wav);
-        // this.osc.type = "sawtooth";
-        this.osc.frequency.value = INITIAL_FREQ;
-        this.osc.start(0);
-    };
-
-    run = () =>
-        combineDispose([
-            autorun(() => {
-                if (state.started) {
-                    this.analyzer.connect(this.ctx.destination);
-                } else {
-                    this.analyzer.disconnect();
-                }
-            }),
-            autorun(() => {
-                this.osc.frequency.value = state.freq;
-            }),
-        ]);
-}
-
-const audio = new Audio();
-
-function drawWave(analyser: AnalyserNode, ctx: CanvasRenderingContext2D) {
-    const buffer = new Float32Array(1024);
-    const w = ctx.canvas.width;
-
-    ctx.strokeStyle = "#777";
-    ctx.setTransform(1, 0, 0, -1, 0, 100.5); // flip y-axis and translate to center
-    ctx.lineWidth = 2;
-
-    (function loop() {
-        analyser.getFloatTimeDomainData(buffer);
-
-        ctx.clearRect(0, -100, w, ctx.canvas.height);
-
-        ctx.beginPath();
-        ctx.moveTo(0, buffer[0] * 90);
-        for (let x = 2; x < w; x += 2) ctx.lineTo(x, buffer[x] * 90);
-        ctx.stroke();
-
-        if (state.started) requestAnimationFrame(loop);
-    })();
-}
-
-function Analyser() {
-    const ref = useRef<HTMLCanvasElement>(null);
-
-    useEffectOnce(() => {
-        const ctx = ref.current?.getContext("2d");
-
-        return autorun(() => {
-            if (state.started) {
-                drawWave(audio.analyzer, ctx!);
-            }
-        });
-    });
-
-    return <canvas ref={ref} />;
-}
+const { real, imag } = fft;
 
 function App() {
-    useEffectOnce(() => {
-        audio.init();
-        audio.run();
-    });
+    useEffectOnce(() => audioState.run());
 
     const handleStart = () => {
-        audio.ctx.resume();
-        state.toggleStart();
+        if (!oscState.started) {
+            audioState.setWaveForm(real, imag);
+        }
+        oscState.toggleStart();
     };
 
     return (
         <Observer>
             {() => (
-                <>
-                    <div>
-                        <input
-                            type="range"
-                            min={20}
-                            max={20000}
-                            value={state.freq}
-                            onChange={state.changeFreq}
-                        />
-                        {state.freq}
-                    </div>
-                    <div>
-                        <button onClick={handleStart}>
-                            {state.started ? "stop" : "start"}
-                        </button>
-                    </div>
-                    <div>
-                        <Analyser />
-                    </div>
-                </>
+                <Layout
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                    }}
+                >
+                    <Layout.Content
+                        style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            margin: "30px",
+                        }}
+                    >
+                        <Card
+                            style={{ width: "1024px" }}
+                            actions={[
+                                <Button
+                                    size="large"
+                                    type="text"
+                                    onClick={handleStart}
+                                    icon={
+                                        oscState.started ? (
+                                            <PauseCircleOutlined />
+                                        ) : (
+                                            <PlayCircleOutlined />
+                                        )
+                                    }
+                                />,
+                            ]}
+                        >
+                            <Row align="middle">
+                                <Col span={3}>Frequency: {oscState.freq}</Col>
+                                <Col flex={1}>
+                                    <Slider
+                                        min={20}
+                                        max={20000}
+                                        value={oscState.freq}
+                                        onChange={oscState.changeFreq}
+                                    />
+                                </Col>
+                            </Row>
+
+                            <Analyser analyzerNode={audioState.analyzer} />
+                        </Card>
+                    </Layout.Content>
+                </Layout>
             )}
         </Observer>
     );

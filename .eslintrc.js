@@ -25,7 +25,7 @@ module.exports = {
     },
     plugins: ["react", "@typescript-eslint"],
     rules: {
-        "no-unused-vars": 0,
+        "no-unused-vars": "warn",
         "max-classes-per-file": 0,
         "react/jsx-filename-extension": [
             1,
@@ -38,5 +38,6 @@ module.exports = {
         "import/prefer-default-export": 0,
         "react/react-in-jsx-scope": 0,
         "no-shadow": 0,
+        "no-param-reassign": 0,
     },
 };
