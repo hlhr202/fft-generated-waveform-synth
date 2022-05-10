@@ -47,6 +47,11 @@ function App() {
                         }}
                     >
                         <Card
+                            title="Oscillator Visualizer"
+                            headStyle={{
+                                display: "flex",
+                                justifyContent: "center",
+                            }}
                             style={{ width: "1024px" }}
                             actions={[
                                 <Button
@@ -64,9 +69,16 @@ function App() {
                             ]}
                         >
                             <Row align="middle">
-                                <Col span={3}>Frequency: {oscState.freq}</Col>
+                                <Col span={4}>Frequency: {oscState.freq}hz</Col>
                                 <Col flex={1}>
                                     <Slider
+                                        marks={{
+                                            20: "20hz",
+                                            2000: "2000hz",
+                                            5000: "5000hz",
+                                            10000: "10000hz",
+                                            20000: "20000hz",
+                                        }}
                                         min={20}
                                         max={20000}
                                         value={oscState.freq}
